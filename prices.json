@@ -1,0 +1,57 @@
+{
+  "last_updated": "2026-07-05T20:21:05+05:30",
+  "stocks": {
+    "Agri \u0026 Sugar Cycles": {
+      "BALRAMCHIN": 557.45,
+      "BANARISUG": 3426.6,
+      "DALMIASUG": 341.1,
+      "DHAMPURSUG": 142.86,
+      "EIDPARRY": 742.4,
+      "RENUKA": 22.99,
+      "TRIVENI": 458.65
+    },
+    "Auto \u0026 EV": {
+      "FORCEMOT": 18804,
+      "OLECTRA": 1490,
+      "RKFORGE": 577.35,
+      "SONACOMS": 660.1,
+      "UNOMINDA": 1126.1
+    },
+    "Auto \u0026 EV Beta": {
+      "ASHOKLEY": 164.35,
+      "ENDURANCE": 2640.8,
+      "FIEMIND": 2261.7,
+      "JAMNAAUTO": 138.75,
+      "SUBROS": 848.1,
+      "SUPRAJIT": 480.95,
+      "TVSMOTOR": 3627.4,
+      "VARROC": 667.55
+    },
+    "Banking \u0026 Financials": {
+      "ANGELONE": 352.25,
+      "BANDHANBNK": 200.6,
+      "BANKBARODA": 252.2,
+      "BSE": 3816.6,
+      "CANBK": 127.19,
+      "CDSL": 1350.6,
+      "FEDERALBNK": 327.4,
+      "HUDCO": 215.56,
+      "IDFCFIRSTB": 80.46,
+      "IEX": 123.94,
+      "IFCI": 75.91,
+      "INDUSINDBK": 974.35,
+      "IOB": 34.37,
+      "IREDA": 128.49,
+      "M\u0026MFIN": 334.05,
+      "MANAPPURAM": 328.2,
+      "MCX": 2814,
+      "PFC": 425.8,
+      "PNB": 105.35,
+      "POONAWALLA": 460.95,
+      "RBLBANK": 361.1,
+      "RECLTD": 365.15,
+      "UCOBANK": 26.96,
+      "YESBANK": 24.39
+    }
+  }
+}
