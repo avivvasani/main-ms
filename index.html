@@ -17,14 +17,33 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     
     <script>
-        if (localStorage.getItem('theme') === 'dark') {
+        const savedTheme = localStorage.getItem('theme');
+        const isDarkTheme = savedTheme === 'dark';
+        
+        if (isDarkTheme) {
             document.documentElement.classList.add('dark');
         } else {
             document.documentElement.classList.remove('dark');
-            if (!localStorage.getItem('theme')) {
+            if (!savedTheme) {
                 localStorage.setItem('theme', 'light');
             }
         }
+        window.addEventListener('DOMContentLoaded', () => {
+            // Evaluate theme state again
+            const isDark = document.documentElement.classList.contains('dark');
+            
+            // Target your layout images
+            const authLogo = document.getElementById('auth-logo');
+            const bottomLogo = document.getElementById('bottom-logo-img');
+
+            // Theme-specific paths
+            const lightLogoPath = './assets/aus_black.png';
+            const darkLogoPath = './assets/aus_white.png'; 
+
+            // Overwrite the src properties instantly on launch
+            if (authLogo) authLogo.src = isDark ? darkLogoPath : lightLogoPath;
+            if (bottomLogo) bottomLogo.src = isDark ? darkLogoPath : lightLogoPath;
+        });
     </script>
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
@@ -1650,6 +1669,7 @@
                         }
                     }
 
+                    // Existing app ledger state mapping
                     currentPortfolio.transactions.push({ 
                         timestamp: transactionData.timestamp, 
                         type: transactionData.action, 
@@ -1659,11 +1679,32 @@
                         pl: modalType === 'sell' ? pL.toFixed(2) : "0.00"
                     });
 
+                    // =================================================================
+                    // NEW: Push the exact target JSON log structure into history array
+                    // =================================================================
+                    if (typeof transactionHistory === 'undefined') {
+                        window.transactionHistory = [];
+                    }
+                    transactionHistory.push({
+                        action: transactionData.action,
+                        price_per_stock: transactionData.price_per_stock,
+                        quantity: transactionData.quantity,
+                        stock: transactionData.stock,
+                        time: transactionData.timestamp,
+                        total_price: Number(cost.toFixed(2))
+                    });
+
                     saveUserData(currentUserId);
                     updatePortfolioDisplay();
                     renderStockCards(currentFilter);
                     closeTransactionModal();
                     syncTotalPL();
+
+                    // =================================================================
+                    // AUTO-OVERWRITE WRITER TRIGGER
+                    // =================================================================
+                    saveUserFile();
+
                 } else {
                     modalMessage.textContent = "Server error. Please try again.";
                     isSubmitting = false; 
@@ -1847,11 +1888,18 @@
             });
         }
 
-        function toggleWatchlist(id) {
-            currentWatchlist = currentWatchlist.includes(id) ? currentWatchlist.filter(x => x !== id) : [...currentWatchlist, id];
+        function toggleWatchlist(symbol) {
+            const index = currentWatchlist.indexOf(symbol);
+            if (index === -1) {
+                currentWatchlist.push(symbol);
+            } else {
+                currentWatchlist.splice(index, 1);
+            }
+            
+            // Save local state backup values
             saveUserData(currentUserId);
-            renderFilterButtons();
             renderStockCards(currentFilter);
+            saveUserFile();
         }
 
         function exportPortfolioToCSV() {
@@ -1879,6 +1927,40 @@
             document.body.removeChild(link);
         }
 
+        async function saveUserFile() { // Keeping name matching the existing codebase hooks
+            if (!currentUserId) return;
+            
+            // 1. Package the live application states
+            const cleanDataPackage = {
+                watchlist: watchlist || [],
+                transactions: transactionHistory || []
+            };
+            
+            // 2. Convert directly to a plain-text readable JSON string
+            const plainTextJson = JSON.stringify(cleanDataPackage, null, 4); // Added 4-space formatting for easy reading on disk
+
+            // 3. Forward the plain JSON string straight to the Electron backend
+            if (window.require) {
+                try {
+                    const { ipcRenderer } = window.require('electron');
+                    const result = await ipcRenderer.invoke('write-portfolio-background', { 
+                        userId: currentUserId, 
+                        jsonString: plainTextJson 
+                    });
+                    
+                    if (result && result.success) {
+                        console.log("Background plain JSON portfolio auto-overwrite completed.");
+                    } else {
+                        console.error("Error writing plain JSON file:", result ? result.error : "Unknown IPC error");
+                    }
+                } catch (ipcErr) {
+                    console.error("Electron IPC invocation failed:", ipcErr);
+                }
+            } else {
+                console.log("Electron container not detected. Plain JSON payload:", plainTextJson);
+            }
+        }
+
         async function syncTotalPL() {
             if (!currentUserId) return;
             let invested = 0, currentVal = 0;
@@ -1897,6 +1979,18 @@
                     body: JSON.stringify({ username: currentUserId, total_profit_loss: totalPL })
                 });
             } catch (e) { console.error("Failed to sync leaderboard", e); }
+        }
+
+        function completeUserLogin(validatedUserId) {
+            currentUserId = validatedUserId;
+            localStorage.setItem(LOCAL_STORAGE_CURRENT_USER_ID_KEY, validatedUserId);
+            
+            // MULTI-USER SYNC: Pull fresh list for this user
+            const userWatchlistKey = LOCAL_STORAGE_WATCHLIST_PREFIX + currentUserId;
+            watchlist = JSON.parse(localStorage.getItem(userWatchlistKey)) || [];
+            
+            loadUserData(validatedUserId);
+            showMainApp();
         }
 
         // Function to handle Enter key behavior
@@ -1931,17 +2025,43 @@
             getEl('cancel-transaction-button').onclick = closeTransactionModal;
             getEl('max-quantity-button').onclick = setMaxQuantity;
 
+            getEl('logout-button').onclick = () => {
+                // 1. Clear session key so they go back to login screen on next boot
+                localStorage.removeItem(LOCAL_STORAGE_CURRENT_USER_ID_KEY);
+                
+                // 2. CRITICAL RESET: Reset working variables to empty states
+                currentUserId = null;
+                watchlist = []; // Clears active memory array without deleting localStorage strings!
+                
+                // 3. Flip screen views back to Auth Page
+                getEl('top-bar').classList.add('hidden');
+                getEl('trading-section').classList.add('hidden');
+                getEl('analytics-section').classList.add('hidden');
+                
+                getEl('login-page').style.display = 'flex';
+                document.body.style.alignItems = 'center';
+                
+                getEl('login-username').value = '';
+                getEl('login-password').value = '';
+            };
+
             // FIXED: Restored the theme toggle initialization click binding
             const themeToggleButtons = document.querySelectorAll('.theme-toggle-btn');
             themeToggleButtons.forEach(btn => {
                 btn.onclick = () => {
                     const isDark = document.documentElement.classList.contains('dark');
+                    
                     if (isDark) {
                         document.documentElement.classList.remove('dark');
                         localStorage.setItem('theme', 'light');
                     } else {
                         document.documentElement.classList.add('dark');
                         localStorage.setItem('theme', 'dark');
+                    }
+
+                    // CRITICAL FIX: Make sure images change immediately when the button is clicked!
+                    if (typeof updateThemeImages === 'function') {
+                        updateThemeImages();
                     }
                 };
             });
@@ -1982,21 +2102,26 @@
             
             // Check local storage for persistent sessions on application load
             const savedSessionUser = localStorage.getItem(LOCAL_STORAGE_CURRENT_USER_ID_KEY);
-            if (savedSessionUser) { 
-                currentUserId = savedSessionUser; 
-                loadUserData(savedSessionUser); 
-                showMainApp(); 
+                if (savedSessionUser) { 
+                    currentUserId = savedSessionUser; 
+                    loadUserData(savedSessionUser); 
+            
+                    // MULTI-USER SYNC: Load watchlist on launch
+                    const userWatchlistKey = LOCAL_STORAGE_WATCHLIST_PREFIX + currentUserId;
+                    watchlist = JSON.parse(localStorage.getItem(userWatchlistKey)) || [];
+                    
+                    showMainApp(); 
 
-                // Update top bar icon image element if an explicit logo config path is set
-                const savedLogo = localStorage.getItem('school_logo');
-                const topBarIcon = document.getElementById('top-bar-icon');
-                if (topBarIcon && savedLogo) {
-                    topBarIcon.src = savedLogo;
+                    // Update top bar icon image element if an explicit logo config path is set
+                    const savedLogo = localStorage.getItem('school_logo');
+                    const topBarIcon = document.getElementById('top-bar-icon');
+                    if (topBarIcon && savedLogo) {
+                        topBarIcon.src = savedLogo;
+                    }
+                } else {
+                    getEl('login-page').style.display = 'flex';
+                    document.body.style.alignItems = 'center';
                 }
-            } else {
-                getEl('login-page').style.display = 'flex';
-                document.body.style.alignItems = 'center';
-            }
 
             // Chart panel search box filter triggers
             const chartSearch = getEl('chart-search-input');
