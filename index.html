@@ -612,6 +612,15 @@
         }
         .modal-message { margin-top: 1rem; color: var(--negative-color); font-weight: 600; }
 
+        input:focus, 
+        select:focus, 
+        button:focus, 
+        textarea:focus,
+        [contenteditable="true"]:focus {
+            outline: none !important;
+            box-shadow: none !important;
+        }
+
         @media (max-width: 768px) {
             body { padding: 0.8rem; }
             .container { padding: 1.2rem; }
@@ -656,13 +665,13 @@
             </button>
         </div>
         <div class="auth-card">
-            <img id="auth-logo" src="./assets/aus1_bg.png" alt=" " style="width: 175px; height: auto; margin: 0 auto 1.5rem auto; display: block;">
+            <img id="auth-logo" src="./assets/aus1_bg.png" alt=" " style="width: 175px; height: auto; margin: 0 auto 0px auto; display: block;">
             
             <h2>Welcome Back!</h2>
             <p class="subtitle">Log in to manage your stocks portfolio</p>
             <div class="form-group">
-                <label for="login-username">Username</label>
-                <input type="text" id="login-username" placeholder="Enter your username">
+                <label for="login-username">User ID</label>
+                <input type="text" id="login-username" placeholder="Enter your unique user ID">
             </div>
             <div class="form-group">
                 <label for="login-password">Password</label>
@@ -977,6 +986,19 @@
                 if (portfolioResponse.ok) {
                     const portfolioData = await portfolioResponse.json();
                     
+                    // === WATCHLIST RELOAD DISK EXTRACTOR ===
+                    // Read watchlist from the backend .json file if it exists, and sync it to localStorage
+                    if (portfolioData.watchlist && Array.isArray(portfolioData.watchlist)) {
+                        // Keep memory variables completely matched to avoid variable clashing
+                        watchlist = portfolioData.watchlist;
+                        if (typeof currentWatchlist !== 'undefined') {
+                            currentWatchlist = portfolioData.watchlist;
+                        }
+                        const userWatchlistKey = LOCAL_STORAGE_WATCHLIST_PREFIX + userId;
+                        localStorage.setItem(userWatchlistKey, JSON.stringify(watchlist));
+                    }
+                    // ======================================
+
                     currentPortfolio.cashBalance = parseFloat(portfolioData.remaining_cash || 0);
                     currentPortfolio.realizedPL = parseFloat(portfolioData.realized_p_l || 0);
                     currentPortfolio.unrealizedPL = parseFloat(portfolioData.unrealized_p_l || 0);
@@ -1000,50 +1022,44 @@
                 if (response.ok) {
                     const serverTransactions = await response.json();
                     if (Array.isArray(serverTransactions)) {
+                        if (typeof transactionHistory !== 'undefined') {
+                            transactionHistory = serverTransactions;
+                        }
                         
-                        // Track moving average costs per stock dynamically to calculate P/L step-by-step
-                        const historicalCostBasisMap = {};
-
-                        // Sort transactions chronologically (oldest to newest) to rebuild the ledger timeline
-                        // assuming your backend provides them chronologically or they have timestamps
-                        const chronologicalTrades = [...serverTransactions];
-
-                        currentPortfolio.transactions = chronologicalTrades.map(t => {
-                            const price = parseFloat(t.price_per_stock || t.price_ps || t.price || 0);
+                        let trackingMeta = {};
+                        currentPortfolio.transactions = serverTransactions.map(t => {
+                            const type = t.action || "";
+                            const stockId = t.stock || "";
                             const quantity = parseInt(t.quantity || 0, 10);
-                            const type = (t.action || t.type || "").toUpperCase();
-                            const stockId = t.stock || t.stockId || "";
+                            const price = parseFloat(t.price_per_stock || 0);
                             
-                            let plImpact = parseFloat(t.pl ?? t.p_l ?? t.realized_p_l ?? t.profit_loss ?? 0);
-
-                            // Initialize the tracking object for this stock if it doesn't exist
-                            if (!historicalCostBasisMap[stockId]) {
-                                historicalCostBasisMap[stockId] = { quantity: 0, avgPrice: 0 };
+                            if (!trackingMeta[stockId]) {
+                                trackingMeta[stockId] = { quantity: 0, avgPrice: 0 };
                             }
+                            const meta = trackingMeta[stockId];
+                            let plImpact = 0;
                             
-                            const meta = historicalCostBasisMap[stockId];
-
                             if (type === 'BUY') {
-                                // Reconstruct rolling average cost rule: total cost / total quantity
-                                const totalCost = (meta.quantity * meta.avgPrice) + (quantity * price);
+                                const newTotalCost = (meta.quantity * meta.avgPrice) + (quantity * price);
                                 meta.quantity += quantity;
-                                meta.avgPrice = meta.quantity > 0 ? (totalCost / meta.quantity) : 0;
+                                meta.avgPrice = meta.quantity > 0 ? (newTotalCost / meta.quantity) : 0;
                             } else if (type === 'SELL') {
-                                // FORCE CALCULATE: If server dropped the P/L, compute it using the current historical snapshot
+                                if (t.profit_loss !== undefined) {
+                                    plImpact = parseFloat(t.profit_loss);
+                                }
                                 if (plImpact === 0 && meta.avgPrice > 0) {
                                     plImpact = (price - meta.avgPrice) * quantity;
                                 }
-                                // Reduce position volume remaining in timeline
                                 meta.quantity = Math.max(0, meta.quantity - quantity);
                             }
-
+                            
                             return {
                                 timestamp: t.timestamp || t.time || "",
                                 type: type,
                                 stockId: stockId,
                                 quantity: quantity,
                                 price: price,
-                                pl: plImpact.toFixed(2) // Kept as string to mirror live trade pushes exactly
+                                pl: plImpact.toFixed(2)
                             };
                         });
                     }
@@ -1051,10 +1067,51 @@
 
                 // 3. Trigger full UI re-render
                 updatePortfolioDisplay();
-                renderStockCards(currentFilter);
                 
+                // Use optimized live repaint if it's an inline reload, or full pass on boot
+                if (firstLoad) {
+                    renderStockCards(currentFilter);
+                } else {
+                    updateLiveElements();
+                }
+
             } catch (error) {
                 console.error("Critical user data loading sync error:", error);
+            }
+        }
+
+        async function syncTransactionsOnLogin(username) {
+            try {
+                const response = await fetch(`http://127.0.0.1:16000/api/transactions?username=${encodeURIComponent(username)}`);
+                if (response.ok) {
+                    const data = await response.json();
+                    // Store the entire structure in localStorage
+                    localStorage.setItem(`transactions_${username}`, JSON.stringify(data));
+                    console.log("Transactions successfully synchronized on login.");
+                }
+            } catch (error) {
+                console.error("Error fetching transactions on login:", error);
+            }
+        }
+
+        async function syncTransactionsOnLogout(username) {
+            try {
+                const localData = localStorage.getItem(`transactions_${username}`);
+                const transactionsArray = localData ? JSON.parse(localData) : [];
+
+                const response = await fetch(`http://127.0.0.1:16000/api/transactions?username=${encodeURIComponent(username)}`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ username: username, transactions: transactionsArray })
+                });
+
+                if (response.ok) {
+                    console.log("Transactions successfully synchronized to .json file on logout.");
+                }
+            } catch (error) {
+                console.error("Error saving transactions on logout:", error);
             }
         }
 
@@ -1118,6 +1175,21 @@
                 loginError.textContent = 'An error occurred during login. Please try again.';
                 loginError.classList.remove('hidden');
             }
+
+            currentUserId = username;
+            localStorage.setItem('session_user', currentUserId);
+            
+            // Fetch entire transaction payload and save to localStorage before showing main app
+            await syncTransactionsOnLogin(currentUserId);
+            
+            // Sync watchlist as per your existing structure
+            const userWatchlistKey = LOCAL_STORAGE_WATCHLIST_PREFIX + currentUserId;
+            const parsedWatchlist = JSON.parse(localStorage.getItem(userWatchlistKey)) || [];
+            watchlist = parsedWatchlist;
+            currentWatchlist = parsedWatchlist;
+            
+            loadUserData(currentUserId);
+            showMainApp();
         }
 
         function saveUserData(userId) {
@@ -1132,7 +1204,7 @@
             showMainApp();
         }
 
-        function handleLogout() {
+        async function handleLogout() {
             stopPriceUpdates();
             localStorage.clear();
             currentUserId = null;
@@ -1160,6 +1232,33 @@
             
             getEl('login-page').style.display = 'flex';
             document.body.style.alignItems = 'center';
+
+            if (currentUserId) {
+                // Build up and save everything to the server side .json via API prior to session wipe
+                await syncTransactionsOnLogout(currentUserId);
+            }
+            
+            // Clear the active session tracking values
+            localStorage.removeItem('session_user');
+            currentUserId = null;
+            watchlist = [];
+            currentWatchlist = [];
+            
+            // Redirect UI back to login layout
+            getEl('main-app-layout').style.display = 'none'; // Adjust element IDs to match your precise layout containers
+            getEl('login-page').style.display = 'flex';
+            document.body.style.alignItems = 'center';
+        }
+
+        function recordNewTransaction(newTxData) {
+            const key = `transactions_${currentUserId}`;
+            const currentTxList = JSON.parse(localStorage.getItem(key)) || [];
+            
+            // Push new transaction object to build up the history
+            currentTxList.push(newTxData);
+            
+            // Save back to localstorage immediately
+            localStorage.setItem(key, JSON.stringify(currentTxList));
         }
 
         function showMainApp() {
@@ -1888,18 +1987,55 @@
             });
         }
 
-        function toggleWatchlist(symbol) {
-            const index = currentWatchlist.indexOf(symbol);
+        function toggleWatchlist(stockId) {
+            // 1. Defensively verify tracking arrays exist globally
+            if (typeof currentWatchlist === 'undefined') window.currentWatchlist = [];
+            if (typeof watchlist === 'undefined') window.watchlist = [];
+
+            // 2. Unify the state by updating BOTH tracking arrays to avoid transaction erase drops
+            const index = currentWatchlist.indexOf(stockId);
             if (index === -1) {
-                currentWatchlist.push(symbol);
+                currentWatchlist.push(stockId);
+                if (!watchlist.includes(stockId)) {
+                    watchlist.push(stockId);
+                }
             } else {
                 currentWatchlist.splice(index, 1);
+                const wIndex = watchlist.indexOf(stockId);
+                if (wIndex !== -1) {
+                    watchlist.splice(wIndex, 1);
+                }
             }
             
-            // Save local state backup values
-            saveUserData(currentUserId);
-            renderStockCards(currentFilter);
-            saveUserFile();
+            // 3. Persist to local storage immediately for startup redundancy
+            const userWatchlistKey = LOCAL_STORAGE_WATCHLIST_PREFIX + currentUserId;
+            localStorage.setItem(userWatchlistKey, JSON.stringify(currentWatchlist));
+            
+            // 4. PERSIST TO BACKEND FILE SYSTEM IMMEDIATELY
+            // This pushes the updated array directly to your master JSON save file alongside transactions!
+            saveUserFile(); 
+            
+            // 5. TARGETED INSTANT UI RE-PAINT (Zero Lag, No grid teardown)
+            const card = document.querySelector(`[data-stock-id="${stockId}"]`);
+            if (card) {
+                const btn = card.querySelector('.add-to-watchlist-btn');
+                if (btn) {
+                    const isAdded = currentWatchlist.includes(stockId);
+                    btn.classList.toggle('added', isAdded);
+                    btn.innerHTML = isAdded ? 'Watching' : 'Watchlist';
+                }
+            }
+            
+            // 6. Smoothly hide item if user is strictly navigating the "Watchlist" filter tab
+            if (currentFilter === 'Watchlist' && !currentWatchlist.includes(stockId)) {
+                if (card) card.classList.add('hidden');
+            }
+            
+            // 7. Instantly refresh numbers on the counter shortcut button badge
+            const watchlistCount = getEl('watchlist-count');
+            if (watchlistCount) {
+                watchlistCount.textContent = `${currentWatchlist.length} saved`;
+            }
         }
 
         function exportPortfolioToCSV() {
@@ -1927,21 +2063,21 @@
             document.body.removeChild(link);
         }
 
-        async function saveUserFile() { // Keeping name matching the existing codebase hooks
+        async function saveUserFile() {
             if (!currentUserId) return;
-            
-            // 1. Package the live application states
-            const cleanDataPackage = {
-                watchlist: watchlist || [],
-                transactions: transactionHistory || []
-            };
-            
-            // 2. Convert directly to a plain-text readable JSON string
-            const plainTextJson = JSON.stringify(cleanDataPackage, null, 4); // Added 4-space formatting for easy reading on disk
 
-            // 3. Forward the plain JSON string straight to the Electron backend
-            if (window.require) {
-                try {
+            try {
+                // Automatically grabs whatever is currently inside the app's global state variables
+                const cleanDataPackage = {
+                    watchlist: (typeof currentWatchlist !== 'undefined') ? currentWatchlist : (watchlist || []),
+                    transactions: (typeof currentPortfolio !== 'undefined' && currentPortfolio.transactions) ? currentPortfolio.transactions : []
+                };
+
+                // Formats the JSON string beautifully
+                const plainTextJson = JSON.stringify(cleanDataPackage, null, 4);
+
+                // Dispatches it to the Electron backend via the existing IPC channel
+                if (typeof window !== 'undefined' && window.require) {
                     const { ipcRenderer } = window.require('electron');
                     const result = await ipcRenderer.invoke('write-portfolio-background', { 
                         userId: currentUserId, 
@@ -1949,15 +2085,11 @@
                     });
                     
                     if (result && result.success) {
-                        console.log("Background plain JSON portfolio auto-overwrite completed.");
-                    } else {
-                        console.error("Error writing plain JSON file:", result ? result.error : "Unknown IPC error");
+                        console.log(`[SYNC] Local JSON successfully updated.`);
                     }
-                } catch (ipcErr) {
-                    console.error("Electron IPC invocation failed:", ipcErr);
                 }
-            } else {
-                console.log("Electron container not detected. Plain JSON payload:", plainTextJson);
+            } catch (error) {
+                console.error("Error writing structural updates to local JSON file:", error);
             }
         }
 
@@ -2016,16 +2148,31 @@
         }
 
         // --- Init ---
-        document.addEventListener('DOMContentLoaded', () => {
+        document.addEventListener('DOMContentLoaded', async () => {
             // Bind click actions to global components
             getEl('login-button').onclick = handleLogin;
             getEl('anonymous-sign-in').onclick = handleAnonymousSignIn;
-            getEl('logout-button').onclick = handleLogout;
             getEl('confirm-transaction-button').onclick = confirmTransaction;
             getEl('cancel-transaction-button').onclick = closeTransactionModal;
             getEl('max-quantity-button').onclick = setMaxQuantity;
 
-            getEl('logout-button').onclick = () => {
+            getEl('logout-button').onclick = async () => {
+                // NEW FEATURE: Sync the entire user transaction history back onto the backend JSON endpoint on logout
+                if (currentUserId) {
+                    try {
+                        const localData = localStorage.getItem(`transactions_${currentUserId}`);
+                        await fetch(`http://127.0.0.1:16000/api/transactions?username=${encodeURIComponent(currentUserId)}`, {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json'
+                            },
+                            body: JSON.stringify({ username: currentUserId, transactions: localData ? JSON.parse(localData) : [] })
+                        });
+                    } catch (error) {
+                        console.error("Error saving transactions on logout:", error);
+                    }
+                }
+
                 // 1. Clear session key so they go back to login screen on next boot
                 localStorage.removeItem(LOCAL_STORAGE_CURRENT_USER_ID_KEY);
                 
@@ -2102,26 +2249,41 @@
             
             // Check local storage for persistent sessions on application load
             const savedSessionUser = localStorage.getItem(LOCAL_STORAGE_CURRENT_USER_ID_KEY);
-                if (savedSessionUser) { 
-                    currentUserId = savedSessionUser; 
-                    loadUserData(savedSessionUser); 
-            
-                    // MULTI-USER SYNC: Load watchlist on launch
-                    const userWatchlistKey = LOCAL_STORAGE_WATCHLIST_PREFIX + currentUserId;
-                    watchlist = JSON.parse(localStorage.getItem(userWatchlistKey)) || [];
-                    
-                    showMainApp(); 
-
-                    // Update top bar icon image element if an explicit logo config path is set
-                    const savedLogo = localStorage.getItem('school_logo');
-                    const topBarIcon = document.getElementById('top-bar-icon');
-                    if (topBarIcon && savedLogo) {
-                        topBarIcon.src = savedLogo;
+            if (savedSessionUser) { 
+                currentUserId = savedSessionUser; 
+                
+                // NEW FEATURE: Pull entire user transaction history and store it to local storage on login session load
+                try {
+                    const txResponse = await fetch(`http://127.0.0.1:16000/api/transactions?username=${encodeURIComponent(savedSessionUser)}`);
+                    if (txResponse.ok) {
+                        const txData = await txResponse.json();
+                        localStorage.setItem(`transactions_${savedSessionUser}`, JSON.stringify(txData));
                     }
-                } else {
-                    getEl('login-page').style.display = 'flex';
-                    document.body.style.alignItems = 'center';
+                } catch (error) {
+                    console.error("Error loading transactions on session load:", error);
                 }
+
+                loadUserData(savedSessionUser); 
+        
+                // MULTI-USER SYNC: Load watchlist on launch
+                const userWatchlistKey = LOCAL_STORAGE_WATCHLIST_PREFIX + currentUserId;
+                const parsedWatchlist = JSON.parse(localStorage.getItem(userWatchlistKey)) || [];
+
+                watchlist = parsedWatchlist;        // Syncs backend writer array
+                currentWatchlist = parsedWatchlist; // Syncs frontend UI grid cards
+                
+                showMainApp(); 
+
+                // Update top bar icon image element if an explicit logo config path is set
+                const savedLogo = localStorage.getItem('school_logo');
+                const topBarIcon = document.getElementById('top-bar-icon');
+                if (topBarIcon && savedLogo) {
+                    topBarIcon.src = savedLogo;
+                }
+            } else {
+                getEl('login-page').style.display = 'flex';
+                document.body.style.alignItems = 'center';
+            }
 
             // Chart panel search box filter triggers
             const chartSearch = getEl('chart-search-input');
