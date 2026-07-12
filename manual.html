@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.tailwindcss.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data:; connect-src 'self';">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.tailwindcss.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: file: ./assets/; connect-src 'self' file: ipc: http://127.0.0.1:* http://localhost:*; ">
     
     <title>Ashoka Mock-Stock | Manual Ledger</title>
     
@@ -292,23 +292,93 @@
 
     <script>
         const NSE_COMPANY_NAMES = {
-            "BALRAMCHIN": "Balrampur Chini Mills Ltd.",
-            "BANARISUG": "Bannari Amman Sugars Ltd.",
-            "DALMIASUG": "Dalmia Bharat Sugar & Industries",
-            "DHAMPURSUG": "Dhampur Sugar Mills Ltd.",
-            "AXISBANK": "Axis Bank Ltd.",
-            "HDFCBANK": "HDFC Bank Ltd.",
-            "ICICIBANK": "ICICI Bank Ltd.",
-            "SBIN": "State Bank of India",
-            "INFY": "Infosys Ltd.",
-            "TCS": "Tata Consultancy Services Ltd."
+            // Auto Ancillaries
+            "BHARATFORG": "Bharat Forge Ltd.", "CIEINDIA": "CIE Automotive India Ltd.", "CRAFTSMAN": "Craftsman Automation Ltd.", "ENDURANCE": "Endurance Technologies Ltd.", "EXIDEIND": "Exide Industries Ltd.", "FIEMIND": "Fiem Industries Ltd.", "GABRIEL": "Gabriel India Ltd.", "JAMNAAUTO": "Jamna Auto Industries Ltd.", "LUMAXIND": "Lumax Industries Ltd.", "RKFORGE": "Ramkrishna Forgings Ltd.", "SONACOMS": "Sona BLW Precision Forgings", "SUBROS": "Subros Ltd.", "SUPRAJIT": "Suprajit Engineering Ltd.", "UNOMINDA": "Uno Minda Ltd.", "VARROC": "Varroc Engineering Ltd.",
+            // Automobiles - OEMs
+            "ASHOKLEY": "Ashok Leyland Ltd.", "BAJAJ-AUTO": "Bajaj Auto Ltd.", "EICHERMOT": "Eicher Motors Ltd.", "FORCEMOT": "Force Motors Ltd.", "HEROMOTOCO": "Hero MotoCorp Ltd.", "M&M": "Mahindra & Mahindra Ltd.", "MARUTI": "Maruti Suzuki India Ltd.", "OLECTRA": "OLECTRA Greentech Ltd.", "TVSMOTOR": "TVS Motor Company Ltd.",
+            // Banking
+            "AXISBANK": "Axis Bank Ltd.", "BANDHANBNK": "Bandhan Bank Ltd.", "BANKBARODA": "Bank of Baroda", "BANKINDIA": "Bank of India", "CANBK": "Canara Bank", "CENTRALBK": "Central Bank of India", "CSBBANK": "CSB Bank Ltd.", "CUB": "City Union Bank Ltd.", "DCBBANK": "DCB Bank Ltd.", "DHANBANK": "Dhanlaxmi Bank Ltd.", "ESAFSFB": "ESAF Small Finance Bank", "FEDERALBNK": "The Federal Bank Ltd.", "HDFCBANK": "HDFC Bank Ltd.", "ICICIBANK": "ICICI Bank Ltd.", "IDBI": "IDBI Bank Ltd.", "IDFCFIRSTB": "IDFC First Bank Ltd.", "INDIANB": "Indian Bank", "INDUSINDBK": "IndusInd Bank Ltd.", "IOB": "Indian Overseas Bank", "J&KBANK": "Jammu & Kashmir Bank Ltd.", "KARURVYSYA": "Karur Vysya Bank Ltd.", "KOTAKBANK": "Kotak Mahindra Bank Ltd.", "MAHABANK": "Bank of Maharashtra", "PNB": "Punjab National Bank", "PSB": "Punjab & Sind Bank", "RBLBANK": "RBL Bank Ltd.", "SBIN": "State Bank of India", "SOUTHBANK": "The South Indian Bank Ltd.", "SURYODAY": "Suryoday Small Finance Bank", "UCOBANK": "UCO Bank", "UNIONBANK": "Union Bank of India", "UTKARSHBNK": "Utkarsh Small Finance Bank", "YESBANK": "Yes Bank Ltd.",
+            // Beverages & Distilleries
+            "ASAL": "Associated Alcohols & Breweries", "GLOBUSSPR": "Globus Spirits Ltd.", "RADICO": "Radico Khaitan Ltd.", "SULA": "Sula Vineyards Ltd.", "TI": "Tilaknagar Industries Ltd.", "UBL": "United Breweries Ltd.", "VBL": "Varun Beverages Ltd.",
+            // Capital Goods & Industrial
+            "ABB": "ABB India Ltd.", "AIAENG": "AIA Engineering Ltd.", "BHEL": "Bharat Heavy Electricals Ltd.", "CUMMINSIND": "Cummins India Ltd.", "ELGIEQUIP": "Elgi Equipments Ltd.", "HAVELLS": "Havells India Ltd.", "KEI": "KEI Industries Ltd.", "KIRLOSENG": "Kirloskar Oil Engines Ltd.", "LT": "Larsen & Toubro Ltd.", "POLYCAB": "Polycab India Ltd.", "SIEMENS": "Siemens Ltd.", "SKFINDIA": "SKF India Ltd.", "THERMAX": "Thermax Ltd.", "TRITURBINE": "Triveni Turbine Ltd.", "VOLTAS": "Voltas Ltd.",
+            // Cement & Building Materials
+            "ACC": "ACC Ltd.", "AMBUJACEM": "Ambuja Cements Ltd.", "DALBHARAT": "Dalmia Bharat Ltd.", "HEIDELBERG": "HeidelbergCement India Ltd.", "INDIACEM": "The India Cements Ltd.", "JKCEMENT": "JK Cement Ltd.", "ORIENTCEM": "Orient Cement Ltd.", "PRSMJOHNSN": "Prism Johnson Ltd.", "RAMCOCEM": "The Ramco Cements Ltd.", "SAGCEM": "Sagar Cements Ltd.", "SHREECEM": "Shree Cement Ltd.", "STARCEMENT": "Star Cement Ltd.", "ULTRACEMCO": "UltraTech Cement Ltd.",
+            // Chemicals
+            "AARTIIND": "Aarti Industries Ltd.", "ATUL": "Atul Ltd.", "BAYERCROP": "Bayer CropScience Ltd.", "CHAMBLFERT": "Chambal Fertilisers & Chemicals", "CLEAN": "Clean Science & Technology", "COROMANDEL": "Coromandel International", "DEEPAKNTR": "Deepak Nitrite Ltd.", "FACT": "Fertilisers & Chemicals Travancore", "FINEORG": "Fine Organic Industries", "FLUOROCHEM": "Gujarat Fluorochemicals Ltd.", "GNFC": "Gujarat Narmada Valley Fertilizers", "GSFC": "Gujarat State Fertilizers & Chemicals", "GUJALKALI": "Gujarat Alkalies & Chemicals", "MADRASFERT": "Madras Fertilizers Ltd.", "NAVINFLUOR": "Navin Fluorine International", "NOCIL": "NOCIL Ltd.", "PIIND": "PI Industries Ltd.", "RCF": "Rashtriya Chemicals & Fertilizers", "ROSSARI": "Rossari Biotech Ltd.", "SHARDACROP": "Sharda Cropchem Ltd.", "SPIC": "Southern Petrochemical Industries", "SRF": "SRF Ltd.", "SUDARSCHEM": "Sudarshan Chemical Industries", "SUMICHEM": "Sumitomo Chemical India Ltd.", "TATACHEM": "Tata Chemicals Ltd.", "UPL": "UPL Ltd.", "VINATIORGA": "Vinati Organics Ltd.",
+            // Construction & Infrastructure
+            "ASHOKA": "Ashoka Buildcon Ltd.", "ENGINERSIN": "Engineers India Ltd.", "GPIL": "Godawari Power & Ispat Ltd.", "KNRCON": "KNR Constructions Ltd.", "NBCC": "NBCC (India) Ltd.", "NCC": "NCC Ltd.", "PATELENG": "Patel Engineering Ltd.", "PNCINFRA": "PNC Infratech Ltd.", "RKEC": "RKEC Projects Ltd.",
+            // Consumer D&E
+            "AMBER": "Amber Enterprises India Ltd.", "BAJAJELEC": "Bajaj Electricals Ltd.", "BLUESTARCO": "Blue Star Ltd.", "CROMPTON": "Crompton Greaves Consumer Electricals", "DIXON": "Dixon Technologies (India) Ltd.", "KAYNES": "Kaynes Technology India", "ORIENTELEC": "Orient Electric Ltd.", "SYRMA": "Syrma SGS Technology Ltd.", "WHIRLPOOL": "Whirlpool of India Ltd.",
+            // Consumer R&S
+            "ABFRL": "Aditya Birla Fashion and Retail Ltd.", "DELHIVERY": "Delhivery Ltd.", "DMART": "Avenue Supermarts Ltd. (DMart)", "ETHOSLTD": "Ethos Ltd.", "HONASA": "Honasa Consumer Ltd. (Mamaearth)", "KALYANKJIL": "Kalyan Jewellers India Ltd.", "MAPMYINDIA": "C.E. Info Systems Ltd. (MapmyIndia)", "NYKAA": "FSN E-Commerce Ventures Ltd. (Nykaa)", "PAYTM": "One 97 Communications Ltd. (Paytm)", "POLICYBZR": "PB Fintech Ltd. (Policybazaar)", "SENCO": "Senco Gold Ltd.", "TITAN": "Titan Company Ltd.", "TRENT": "Trent Ltd.",
+            // Defense & Shipbuilding
+            "ASTRAZEN": "AstraZeneca Pharma India Ltd.", "BDL": "Bharat Dynamics Ltd.", "BEL": "Bharat Electronics Ltd.", "BEML": "BEML Ltd.", "COCHINSHIP": "Cochin Shipyard Ltd.", "DCXINDIA": "DCX Systems Ltd.", "GRSE": "Garden Reach Shipbuilders & Engineers", "HAL": "Hindustan Aeronautics Ltd.", "IDEAFORGE": "ideaForge Technology Ltd.", "MAZDOCK": "Mazagon Dock Shipbuilders Ltd.", "MTARTECH": "MTAR Technologies Ltd.", "PARAS": "Paras Defence & Space Technologies",
+            // Energy
+            "ADANIGREEN": "Adani Green Energy Ltd.", "ADANIPOWER": "Adani Power Ltd.", "BORORENEW": "Borosil Renewables Ltd.", "BPCL": "Bharat Petroleum Corporation Ltd.", "CHENNPETRO": "Chennai Petroleum Corporation Ltd.", "CONFIPET": "Confidence Petroleum India Ltd.", "GAIL": "GAIL (India) Ltd.", "GENSOL": "Gensol Engineering Ltd.", "GREENPANEL": "Greenpanel Industries Ltd.", "GSPL": "Gujarat State Petronet Ltd.", "GUJGASLTD": "Gujarat Gas Ltd.", "GULFPETRO": "GP Petroleums Ltd.", "HINDPETRO": "Hindustan Petroleum Corporation Ltd.", "IGL": "Indraprastha Gas Ltd.", "IOC": "Indian Oil Corporation Ltd.", "IREDA": "Indian Renewable Energy Development Agency", "JPPOWER": "Jaiprakash Power Ventures Ltd.", "JSWENERGY": "JSW Energy Ltd.", "MGL": "Mahanagar Gas Ltd.", "MRPL": "Mangalore Refinery & Petrochemicals Ltd.", "NHPC": "NHPC Ltd.", "NTPC": "NTPC Ltd.", "OIL": "Oil India Ltd.", "ONGC": "Oil & Natural Gas Corporation Ltd.", "PETRONET": "Petronet LNG Ltd.", "POWERGRID": "Power Grid Corporation of India Ltd.", "SJVN": "SJVN Ltd.", "SUZLON": "Suzlon Energy Ltd.", "TATAPOWER": "Tata Power Company Ltd.", "TORNTPOWER": "Torrent Power Ltd.",
+            // FMCG
+            "AWL": "Adani Wilmar Ltd.", "BRITANNIA": "Britannia Industries Ltd.", "COLPAL": "Colgate-Palmolive (India) Ltd.", "DABUR": "Dabur India Ltd.", "DODLA": "Dodla Dairy Ltd.", "GODREJCP": "Godrej Consumer Products Ltd.", "HATSUN": "Hatsun Agro Product Ltd.", "HERITGFOOD": "Heritage Foods Ltd.", "HINDUNILVR": "Hindustan Unilever Ltd.", "ITC": "ITC Ltd.", "JYOTHYLAB": "Jyothy Labs Ltd.", "MARICO": "Marico Ltd.", "NESTLEIND": "Nestle India Ltd.", "PGHH": "Procter & Gamble Hygiene and Health Care", "TATACONSUM": "Tata Consumer Products Ltd.", "VIJAYA": "Vijaya Diagnostic Centre Ltd.",
+            // Finance
+            "5PAISA": "5paisa Capital Ltd.", "AAVAS": "Aavas Financiers Ltd.", "ABSLAMC": "Aditya Birla Sun Life AMC Ltd.", "ANGELONE": "Angel One Ltd.", "BAJAJFINSV": "Bajaj Finserv Ltd.", "BAJFINANCE": "Bajaj Finance Ltd.", "BSE": "BSE Ltd.", "CAMS": "Computer Age Management Services Ltd.", "CANFINHOME": "Can Fin Homes Ltd.", "CDSL": "Central Depository Services (India) Ltd.", "CHOLAFIN": "Cholamandalam Investment & Finance Co.", "CREDITACC": "CreditAccess Grameen Ltd.", "GEOJITFSL": "Geojit Financial Services Ltd.", "GICRE": "General Insurance Corporation of India", "HDFCAMC": "HDFC Asset Management Company Ltd.", "HDFCLIFE": "HDFC Life Insurance Company Ltd.", "HOMEFIRST": "Home First Finance Company India Ltd.", "HUDCO": "Housing & Urban Development Corporation", "ICICIGI": "ICICI Lombard General Insurance Co.", "ICICIPRULI": "ICICI Prudential Life Insurance Co.", "IEX": "Indian Energy Exchange Ltd.", "IFCI": "IFCI Ltd.", "KFINTECH": "KFin Technologies Ltd.", "LICHSGFIN": "LIC Housing Finance Ltd.", "M&MFIN": "Mahindra & Mahindra Financial Services", "MANAPPURAM": "Manappuram Finance Ltd.", "MASFIN": "MAS Financial Services Ltd.", "MCX": "Multi Commodity Exchange of India Ltd.", "MUTHOOTFIN": "Muthoot Finance Ltd.", "NAM-INDIA": "Nippon Life India Asset Management Ltd.", "NIACL": "The New India Assurance Company Ltd.", "PFC": "Power Finance Corporation Ltd.", "POONAWALLA": "Poonawalla Fincorp Ltd.", "RECLTD": "REC Ltd.", "SATIN": "Satin Creditcare Network Ltd.", "SBILIFE": "SBI Life Insurance Company Ltd.", "SHRIRAMFIN": "Shriram Finance Ltd.", "UFLEX": "Uflex Ltd.", "UTIAMC": "UTI Asset Management Company Ltd.",
+            // Healthcare & Diagnostics
+            "APOLLOHOSP": "Apollo Hospitals Enterprise Ltd.", "ASTERDM": "Aster DM Healthcare Ltd.", "FORTIS": "Fortis Healthcare Ltd.", "GLOBAL": "Global Health Ltd. (Medanta)", "KIMS": "Krishna Institute of Medical Sciences Ltd.", "LALPATHLAB": "Dr. Lal PathLabs Ltd.", "MAXHEALTH": "Max Healthcare Institute Ltd.", "MEDANTA": "Global Health Ltd. (Medanta)", "METROPOLIS": "Metropolis Healthcare Ltd.", "RAINBOW": "Rainbow Children's Medicare Ltd.", "SHALBY": "Shalby Ltd.", "THYROCARE": "Thyrocare Technologies Ltd.",
+            // Hospitality & Tourism
+            "CHALET": "Chalet Hotels Ltd.", "EASEMYTRIP": "Easy Trip Planners Ltd. (EaseMyTrip)", "EIHOTEL": "EIH Ltd. (Oberoi Hotels)", "INDHOTEL": "The Indian Hotels Company Ltd. (Taj)", "ITDC": "India Tourism Development Corporation Ltd.", "LEMONTREE": "Lemon Tree Hotels Ltd.", "SPECIALITY": "Speciality Restaurants Ltd.", "TAJGVK": "TAJGVK Hotels & Resorts Ltd.",
+            // IT - SmallCap & Specialized
+            "63MOONS": "63 Moons Technologies Ltd.", "DSSL": "Dynacons Systems & Solutions Ltd.", "HAPPSTMNDS": "Happiest Minds Technologies Ltd.", "INTELLECT": "Intellect Design Arena Ltd.", "KELLTONTEC": "Kellton Tech Solutions Ltd.", "NELCO": "Nelco Ltd.", "NETWEB": "Netweb Technologies India Ltd.", "NEWGEN": "Newgen Software Technologies Ltd.", "RAMCOSYS": "Ramco Systems Ltd.", "ROUTE": "Route Mobile Ltd.", "SAKSOFT": "Saksoft Ltd.", "TANLA": "Tanla Platforms Ltd.", "VALIANTORG": "Valiant Organics Ltd.",
+            // IT - Tier 1 & 2
+            "BSOFT": "Birlasoft Ltd.", "COFORGE": "Coforge Ltd.", "CYIENT": "Cyient Ltd.", "HCLTECH": "HCL Technologies Ltd.", "INFY": "Infosys Ltd.", "KPITTECH": "KPIT Technologies Ltd.", "LTTS": "L&T Technology Services Ltd.", "MASTEK": "Mastek Ltd.", "MPHASIS": "Mphasis Ltd.", "OFSS": "Oracle Financial Services Software Ltd.", "PERSISTENT": "Persistent Systems Ltd.", "SONATSOFTW": "Sonata Software Ltd.", "TATAELXSI": "Tata Elxsi Ltd.", "TCS": "Tata Consultancy Services Ltd.", "TECHM": "Tech Mahindra Ltd.", "WIPRO": "Wipro Ltd.", "ZENSARTECH": "Zensar Technologies Ltd.",
+            // Metals
+            "APLAPOLLO": "APL Apollo Tubes Ltd.", "COALINDIA": "Coal India Ltd.", "ELECTCAST": "Electrosteel Castings Ltd.", "HINDALCO": "Hindalco Industries Ltd.", "HINDCOPPER": "Hindustan Copper Ltd.", "HINDZINC": "Hindustan Zinc Ltd.", "JINDALSTEL": "Jindal Steel & Power Ltd.", "JSL": "Jindal Stainless Ltd.", "JSWSTEEL": "JSW Steel Ltd.", "KIOCL": "KIOCL Ltd.", "MIDHANI": "Mishra Dhatu Nigam Ltd.", "MOIL": "MOIL Ltd.", "NATIONALUM": "National Aluminium Company Ltd.", "NMDC": "NMDC Ltd.", "RATNAMANI": "Ratnamani Metals & Tubes Ltd.", "SAIL": "Steel Authority of India Ltd.", "SUNFLAG": "Sunflag Iron & Steel Company Ltd.", "TATASTEEL": "Tata Steel Ltd.", "VEDL": "Vedanta Ltd.", "WELCORP": "Welspun Corp Ltd.",
+            // Pharmaceuticals
+            "ABBOTINDIA": "Abbott India Ltd.", "ALKEM": "Alkem Laboratories Ltd.", "AUROPHARMA": "Aurobindo Pharma Ltd.", "BIOCON": "Biocon Ltd.", "CIPLA": "Cipla Ltd.", "DIVISLAB": "Divi's Laboratories Ltd.", "DRREDDY": "Dr. Reddy's Laboratories Ltd.", "ERIS": "Eris Lifesciences Ltd.", "GLAND": "Gland Pharma Ltd.", "GLAXO": "GlaxoSmithKline Pharmaceuticals Ltd.", "GRANULES": "Granules India Ltd.", "IPCALAB": "Ipca Laboratories Ltd.", "JBCHEPHARM": "J.B. Chemicals & Pharmaceuticals Ltd.", "LAURUSLABS": "Laurus Labs Ltd.", "LUPIN": "Lupin Ltd.", "MANKIND": "Mankind Pharma Ltd.", "MARKSANS": "Marksans Pharma Ltd.", "NATCOPHARM": "Natco Pharma Ltd.", "SUNPHARMA": "Sun Pharmaceutical Industries Ltd.", "TORNTPHARM": "Torrent Pharmaceuticals Ltd.", "ZYDUSLIFE": "Zydus Lifesciences Ltd.",
+            // Railways & Logistics
+            "ALLCARGO": "Allcargo Logistics Ltd.", "BLUEDART": "Blue Dart Express Ltd.", "CONCOR": "Container Corporation of India Ltd.", "GATEWAY": "Gateway Distriparks Ltd.", "IRB": "IRB Infrastructure Developers Ltd.", "IRCON": "IRCON International Ltd.", "IRFC": "Indian Railway Finance Corporation Ltd.", "JWL": "Jupiter Wagons Ltd.", "KEC": "KEC International Ltd.", "RAILTEL": "RailTel Corporation of India Ltd.", "RITES": "RITES Ltd.", "RVNL": "Rail Vikas Nigam Ltd.", "TCI": "Transport Corporation of India Ltd.", "TEXRAIL": "Texmaco Rail & Engineering Ltd.", "TITAGARH": "Titagarh Rail Systems Ltd.",
+            // Real Estate
+            "AJMERA": "Ajmera Realty & Infra India Ltd.", "BRIGADE": "Brigade Enterprises Ltd.", "DLF": "DLF Ltd.", "GODREJPROP": "Godrej Properties Ltd.", "IBREALEST": "Indiabulls Real Estate Ltd.", "LODHA": "Macrotech Developers Ltd. (Lodha)", "MAHLIFE": "Mahindra Lifespace Developers", "OBEROIRLTY": "Oberoi Realty Ltd.", "PHOENIXLTD": "The Phoenix Mills Ltd.", "PRESTIGE": "Prestige Estates Projects", "PURVA": "Puravankara Ltd.", "SOBHA": "Sobha Ltd.", "SUNTECK": "Sunteck Realty Ltd.",
+            // Sugar & Agriculture
+            "AVADHSUGAR": "Avadh Sugar & Energy Ltd.", "BALRAMCHIN": "Balrampur Chini Mills Ltd.", "BANARISUG": "Bannari Amman Sugars Ltd.", "DALMIASUG": "Dalmia Bharat Sugar & Industries", "DHAMPURSUG": "Dhampur Sugar Mills Ltd.", "EIDPARRY": "E.I.D. - Parry (India) Ltd.", "RENUKA": "Shree Renuka Sugars Ltd.", "TRIVENI": "Triveni Engineering & Industries Ltd.",
+            // Telecom & Media
+            "BHARTIARTL": "Bharti Airtel Ltd.", "GTLINFRA": "GTL Infrastructure Ltd.", "HFCL": "HFCL Ltd.", "IDEA": "Vodafone Idea Ltd.", "INDUSTOWER": "Indus Towers Ltd.", "ITI": "ITI Ltd.", "NETWORK18": "Network18 Media & Investments Ltd.", "PVRINOX": "PVR INOX Ltd.", "SAREGAMA": "Saregama India Ltd.", "SUNTV": "Sun TV Network Ltd.", "TIPSMUSIC": "Tips Industries Ltd. (Tips Music)", "ZEEL": "Zee Entertainment Enterprises Ltd.",
+            // Textiles & Apparels
+            "ARVIND": "Arvind Ltd.", "FILATEX": "Filatex India Ltd.", "GOKEX": "Gokaldas Exports Ltd.", "KPRMILL": "K.P.R. Mill Ltd.", "LUXIND": "Lux Industries Ltd.", "NITINSPIN": "Nitin Spinners Ltd.", "PAGEIND": "Page Industries Ltd.", "RAYMOND": "Raymond Ltd.", "RUPA": "Rupa & Company Ltd.", "SANGAMIND": "Sangam (India) Ltd.", "TRIDENT": "Trident Ltd.",
+            // Tyres & Rubber
+            "APOLLOTYRE": "Apollo Tyres Ltd.", "CEATLTD": "CEAT Ltd.", "GOODYEAR": "Goodyear India Ltd.", "JKTYRE": "JK Tyre & Industries Ltd.", "MRF": "MRF Ltd.", "TVSSRICHAK": "TVS Srichakra Ltd."
         };
 
         const INITIAL_PRINCIPAL = 100000.00;
         let currentTeam = "";
         let transactions = [];
 
-        const { ipcRenderer } = window.require ? window.require('electron') : { ipcRenderer: null };
+        let ipcRenderer = null;
+
+        if (typeof window !== 'undefined' && window.electronAPI) {
+            // Architecture 1: Modern Context Isolation (preload.js)
+            ipcRenderer = {
+                invoke: async (channel, ...args) => {
+                    if (channel === 'read-portfolio' && window.electronAPI.readPortfolio) {
+                        return await window.electronAPI.readPortfolio(...args);
+                    }
+                    return { success: false, error: "Channel not mapped in preload." };
+                }
+            };
+        } else if (typeof window !== 'undefined' && window.require) {
+            // Architecture 2: Node Integration (Direct Electron require)
+            try {
+                ipcRenderer = window.require('electron').ipcRenderer;
+                console.log("[SYSTEM] Using native Node Integration for IPC.");
+            } catch (e) {
+                console.error("[SYSTEM] Failed to load native electron modules:", e);
+            }
+        }
+
+        // Fallback: If running in a standard Chrome tab instead of the Electron app
+        if (!ipcRenderer) {
+            console.warn("[SYSTEM] No Electron environment detected. Forcing offline browser cache.");
+            ipcRenderer = {
+                invoke: async () => ({ success: false, data: null })
+            };
+        }
 
         document.addEventListener('DOMContentLoaded', () => {
             // 1. Force screen frame presentation to load exactly after 2 Ctrl + zoom factors (120%)
