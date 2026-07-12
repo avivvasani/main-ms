@@ -1,6 +1,6 @@
 const { app, BrowserWindow, ipcMain } = require('electron');
 const path = require('path');
-const fs = require('fs'); // Filesystem module to handle silent overwrites
+const fs = require('fs'); 
 
 let win;
 const activeChartWindows = {};
@@ -14,38 +14,62 @@ function createWindow() {
     icon: path.join(__dirname, 'assets/icon.png'), 
     webPreferences: {
       nodeIntegration: true,
-      contextIsolation: false
+      contextIsolation: false // Matches the direct manual require framework usage
     }
   });
 
-  win.loadFile('index.html'); 
+  win.loadFile('manual.html'); 
 }
 
-// --- NEW BACKGROUND SAVING HANDLER ---
-// Intercepts the plain JSON string from index.html and rewrites it silently
+// RESTORED: Other application modules can continue leveraging this channel pipeline to modify JSON portfolios
 ipcMain.handle('write-portfolio-background', async (event, { userId, jsonString }) => {
   try {
-    // Defines a dedicated storage folder inside the OS user data directory
     const saveDirectory = path.join(app.getPath('userData'), 'Portfolios');
-    
-    // Ensure the target folder path exists cleanly
     if (!fs.existsSync(saveDirectory)) {
         fs.mkdirSync(saveDirectory, { recursive: true });
     }
 
-    // Saved with a .json extension for plain readability
     const fileName = `${userId}_portfolio.json`;
     const filePath = path.join(saveDirectory, fileName);
     
-    // Overwrite the persistent target file cleanly with no browser prompts
     fs.writeFileSync(filePath, jsonString, 'utf8');
-    
     console.log(`[AUTOMATION] Plain JSON portfolio silently saved at: ${filePath}`);
     return { success: true, path: filePath };
   } catch (error) {
     console.error('[AUTOMATION ERROR] Failed plain text background write:', error);
     return { success: false, error: error.message };
   }
+});
+
+// FIXED: Adaptive structural lookup tracking supporting case differences across workspace frameworks
+ipcMain.handle('read-portfolio', async (event, userId) => {
+    try {
+        const saveDirectory = path.join(app.getPath('userData'), 'Portfolios');
+        
+        if (!fs.existsSync(saveDirectory)) {
+            return { success: false, error: "Portfolios folder directory absent." };
+        }
+
+        let targetFileName = `${userId}_portfolio.json`;
+        let filePath = path.join(saveDirectory, targetFileName);
+
+        // Fallback fallback: Search directory if an exact casing filename match cannot be found
+        if (!fs.existsSync(filePath)) {
+            const files = fs.readdirSync(saveDirectory);
+            const matchedFile = files.find(file => file.toLowerCase() === targetFileName.toLowerCase());
+            if (matchedFile) {
+                filePath = path.join(saveDirectory, matchedFile);
+            } else {
+                return { success: false, error: "Database file lookup mismatch or absent resource entry." };
+            }
+        }
+
+        const data = fs.readFileSync(filePath, 'utf8');
+        return { success: true, data: JSON.parse(data) };
+    } catch (error) {
+        console.error('[DATABASE READ ERROR] Failed to pull ledger target context:', error);
+        return { success: false, error: error.message };
+    }
 });
 
 ipcMain.on('open-chart-window', (event, symbol) => {
@@ -74,7 +98,6 @@ ipcMain.on('open-chart-window', (event, symbol) => {
   const chartUrl = `https://www.tradingview.com/chart/?symbol=NSE:${upperSymbol}&theme=light`;
   chartWindow.loadURL(chartUrl);
 
-  // --- FORCE CLOSE GUARANTEE START ---
   chartWindow.webContents.on('will-prevent-unload', (unloadEvent) => {
     unloadEvent.preventDefault(); 
   });
@@ -84,7 +107,6 @@ ipcMain.on('open-chart-window', (event, symbol) => {
       chartWindow.destroy(); 
     }
   });
-  // --- FORCE CLOSE GUARANTEE END ---
 
   chartWindow.on('closed', () => {
     delete activeChartWindows[upperSymbol];
