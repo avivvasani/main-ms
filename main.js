@@ -18,7 +18,7 @@ function createWindow() {
     }
   });
 
-  win.loadFile('manual.html'); 
+  win.loadFile('index.html'); 
 }
 
 // RESTORED: Other application modules can continue leveraging this channel pipeline to modify JSON portfolios
